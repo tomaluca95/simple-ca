@@ -1,0 +1,25 @@
+data_directory: ./tmp/
+http_server:
+    listen_address: 127.0.0.1
+    listen_port: 5000
+all_ca_configs:
+    ca_1:
+        subject:
+            common_name: "My CA 1"
+            country:
+                - "IT"
+            organization:
+                - "ACME Corp"
+            organizational_unit:
+                - "PKI"
+        validity:
+            months: 1
+        key_size: 4096
+        crl_ttl: 12h
+        permitted_dns_domains_critical: true
+        permitted_ip_ranges:
+            - 192.168.0.0/16
+            - 10.0.0.0/8
+        http_server_options:
+            users:
+                my_user: my_pass
