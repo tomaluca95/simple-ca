@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/tomaluca95/simple-ca/internal/pemhelper"
 	"github.com/tomaluca95/simple-ca/internal/types"
 )
 
@@ -235,6 +236,14 @@ func (oneCa *OneCaType) GetCrlPem() ([]byte, error) {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+		return nil, err
+	}
+	return fileContent, nil
+}
+
+func (oneCa *OneCaType) GetIssuerPem() ([]byte, error) {
+	fileContent, err := pemhelper.ToPem(oneCa.caCertificate)
+	if err != nil {
 		return nil, err
 	}
 	return fileContent, nil

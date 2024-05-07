@@ -35,6 +35,9 @@ func CreateHandler(
 			if err != nil {
 				return nil, err
 			}
+			if err := oneCa.UpdateCrl(); err != nil {
+				return nil, err
+			}
 			httpWrapper := &httpWrapperType{
 				caId:  caId,
 				oneCa: oneCa,
@@ -47,6 +50,7 @@ func CreateHandler(
 				),
 			)
 
+			caHttpGroup.GET("/issuer.pem", httpWrapper.Issuer)
 			caHttpGroup.POST("/csr/sign", httpWrapper.CsrSign)
 			caHttpGroup.POST("/crt/revoke/:crtSerial", httpWrapper.CrtRevokeCrtSerial)
 			caHttpGroup.GET("/crt/crl.pem", httpWrapper.CrtCrlPem)
@@ -59,6 +63,15 @@ func CreateHandler(
 type httpWrapperType struct {
 	caId  string
 	oneCa *caissuingprocess.OneCaType
+}
+
+func (httpWrapper *httpWrapperType) Issuer(c *gin.Context) {
+	fileContent, err := httpWrapper.oneCa.GetIssuerPem()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Writer.Write(fileContent)
 }
 
 func (httpWrapper *httpWrapperType) CrtCrlPem(c *gin.Context) {

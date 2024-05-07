@@ -3,6 +3,8 @@ package webserver_test
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -82,12 +84,12 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 		t.Fatalf("invalid status code %d", statusCode)
 	}
 
-	respBody, err := io.ReadAll(rr.Body)
+	issueRespBody, err := io.ReadAll(rr.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	c, err := pemhelper.FromPemToCertificate(respBody)
+	c, err := pemhelper.FromPemToCertificate(issueRespBody)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,12 +167,12 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 		t.Fatalf("invalid status code %d", statusCode)
 	}
 
-	respBody, err := io.ReadAll(rrSignRequest.Body)
+	issueRespBody, err := io.ReadAll(rrSignRequest.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	signedCrt, err := pemhelper.FromPemToCertificate(respBody)
+	signedCrt, err := pemhelper.FromPemToCertificate(issueRespBody)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,5 +197,117 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 
 	if statusCode := rrRevoke.Result().StatusCode; statusCode != 202 {
 		t.Fatalf("invalid status code %d", statusCode)
+	}
+
+	rrCurrentCrl := httptest.NewRecorder()
+	{
+		req, err := http.NewRequest(
+			http.MethodGet,
+			"/ca/"+caId+"/crt/crl.pem",
+			nil,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.SetBasicAuth(httpCaUsername, httpCaPassword)
+		h.ServeHTTP(rrCurrentCrl, req)
+	}
+
+	if statusCode := rrCurrentCrl.Result().StatusCode; statusCode != 200 {
+		t.Fatalf("invalid status code %d", statusCode)
+	}
+	crlRespBody, err := io.ReadAll(rrCurrentCrl.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pemBlock, rest := pem.Decode(crlRespBody)
+	if restLen := len(rest); restLen != 0 {
+		t.Fatal("invalid reminder")
+	}
+	if pemBlock == nil {
+		t.Fatalf("no pem block in %s", crlRespBody)
+	}
+	crlInfo, err := x509.ParseRevocationList(pemBlock.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := false
+	for _, r := range crlInfo.RevokedCertificateEntries {
+		found = found || r.SerialNumber.Cmp(signedCrt.SerialNumber) == 0
+	}
+
+	if !found {
+		t.Fatal("crl not containing")
+	}
+}
+
+func TestGetIssuer(t *testing.T) {
+	dataDirectory := t.TempDir()
+	caId := "test_ca_1"
+
+	httpCaUsername := "username"
+	httpCaPassword := "password"
+
+	h, err := webserver.CreateHandler(
+		context.Background(),
+		types.ConfigFileType{
+			DataDirectory: dataDirectory,
+			AllCaConfigs: map[string]types.CertificateAuthorityType{
+				caId: {
+					Subject: types.CertificateAuthoritySubjectType{
+						CommonName: "test_ca_1",
+					},
+					KeySize:           2048,
+					CrlTtl:            12 * time.Hour,
+					PermittedIPRanges: []string{"0.0.0.0/0"},
+					ExcludedIPRanges:  []string{"0.0.0.0/0"},
+					HttpServerOptions: &types.HttpServerOptionsType{
+						Users: map[string]string{
+							httpCaUsername: httpCaPassword,
+						},
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rrCurrentCrt := httptest.NewRecorder()
+	{
+		req, err := http.NewRequest(
+			http.MethodGet,
+			"/ca/"+caId+"/issuer.pem",
+			nil,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.SetBasicAuth(httpCaUsername, httpCaPassword)
+		h.ServeHTTP(rrCurrentCrt, req)
+	}
+
+	if statusCode := rrCurrentCrt.Result().StatusCode; statusCode != 200 {
+		t.Fatalf("invalid status code %d", statusCode)
+	}
+	crtRespBody, err := io.ReadAll(rrCurrentCrt.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pemBlock, rest := pem.Decode(crtRespBody)
+	if restLen := len(rest); restLen != 0 {
+		t.Fatal("invalid reminder")
+	}
+	if pemBlock == nil {
+		t.Fatalf("no pem block in %s", crtRespBody)
+	}
+	crtInfo, err := x509.ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if crtInfo.Issuer.String() != "CN=test_ca_1" {
+		t.Fatalf("crt not issuer %#v", crtInfo.Issuer.String())
 	}
 }
