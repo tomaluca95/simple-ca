@@ -14,7 +14,10 @@ all_ca_configs:
                 - "PKI"
         validity:
             months: 1
-        key_size: 4096
+        key_config:
+            type: rsa
+            config:
+                size: 4096
         crl_ttl: 12h
         permitted_dns_domains_critical: true
         permitted_ip_ranges:

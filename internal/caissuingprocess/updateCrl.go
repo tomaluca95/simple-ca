@@ -1,8 +1,8 @@
 package caissuingprocess
 
 import (
+	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -19,7 +19,7 @@ func updateCrl(
 	caFilenameCrl string,
 	crlTtl time.Duration,
 	caCertificate *x509.Certificate,
-	caPrivateKey *rsa.PrivateKey,
+	caPrivateKey crypto.Signer,
 	addSerialsToRevoked []*big.Int,
 ) error {
 	crlList := []pkix.RevokedCertificate{}

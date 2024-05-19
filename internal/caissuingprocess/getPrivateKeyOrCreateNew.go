@@ -1,6 +1,7 @@
 package caissuingprocess
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -15,7 +16,7 @@ var ErrUnsupportedChangeToKeySize = fmt.Errorf("invalid key size")
 func getRsaPrivateKeyOrCreateNew(
 	filename string,
 	keySize int,
-) (*rsa.PrivateKey, error) {
+) (crypto.Signer, error) {
 	if _, err := os.Stat(filename); err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err

@@ -1,8 +1,8 @@
 package caissuingprocess
 
 import (
+	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
 	"log"
@@ -12,12 +12,11 @@ import (
 	"github.com/tomaluca95/simple-ca/internal/pemhelper"
 )
 
-func getCertificateOrCreateNew(
+func getCertificateOrCreateNewSelfSigned(
 	issuedCertificatesDir string,
 	templateCertificate *x509.Certificate,
 	caCertificate *x509.Certificate,
-	newCertificatePublicKey *rsa.PublicKey,
-	caPrivateKey *rsa.PrivateKey,
+	caPrivateKey crypto.Signer,
 ) (*x509.Certificate, error) {
 	certificateFilename := filepath.Join(issuedCertificatesDir, templateCertificate.SerialNumber.String()+".crt.pem")
 
@@ -30,7 +29,7 @@ func getCertificateOrCreateNew(
 			issuedCertificatesDir,
 			templateCertificate,
 			caCertificate,
-			newCertificatePublicKey,
+			extractPublicKeyFromSigner(caPrivateKey),
 			caPrivateKey,
 		); err != nil {
 			return nil, err
@@ -49,8 +48,8 @@ func certificateCreateNew(
 	issuedCertificatesDir string,
 	templateCertificate *x509.Certificate,
 	caCertificate *x509.Certificate,
-	newCertificatePublicKey *rsa.PublicKey,
-	caPrivateKey *rsa.PrivateKey,
+	newCertificatePublicKey any,
+	caPrivateKey crypto.Signer,
 ) ([]byte, error) {
 	certificateFilename := filepath.Join(issuedCertificatesDir, templateCertificate.SerialNumber.String()+".crt.pem")
 

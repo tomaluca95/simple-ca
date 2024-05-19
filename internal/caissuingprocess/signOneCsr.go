@@ -1,6 +1,7 @@
 package caissuingprocess
 
 import (
+	"crypto"
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
@@ -18,7 +19,7 @@ var ErrInvalidKeyTypeInCsr = fmt.Errorf("invalid key type for csr")
 
 func signOneCsr(
 	caCertificate *x509.Certificate,
-	caPrivateKey *rsa.PrivateKey,
+	caPrivateKey crypto.Signer,
 	csrFilename string,
 	issuedCertificatesDir string,
 ) ([]byte, error) {

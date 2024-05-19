@@ -28,7 +28,12 @@ func TestOneCaBootstrap(t *testing.T) {
 		Subject: types.CertificateAuthoritySubjectType{
 			CommonName: "test_ca_1",
 		},
-		KeySize:           2048,
+		KeyConfig: types.KeyConfigType{
+			Type: "rsa",
+			Config: types.KeyTypeRsaConfigType{
+				Size: 2048,
+			},
+		},
 		CrlTtl:            12 * time.Hour,
 		PermittedIPRanges: []string{"0.0.0.0/0"},
 		ExcludedIPRanges:  []string{"0.0.0.0/0"},
@@ -121,7 +126,12 @@ func TestInvalidPermittedIPRanges(t *testing.T) {
 			Subject: types.CertificateAuthoritySubjectType{
 				CommonName: "test_ca_1",
 			},
-			KeySize:           2048,
+			KeyConfig: types.KeyConfigType{
+				Type: "rsa",
+				Config: types.KeyTypeRsaConfigType{
+					Size: 2048,
+				},
+			},
 			CrlTtl:            12 * time.Hour,
 			PermittedIPRanges: []string{"INVALIDME"},
 			ExcludedIPRanges:  []string{"0.0.0.0/0"},
@@ -141,7 +151,12 @@ func TestInvalidExcludedIPRanges(t *testing.T) {
 			Subject: types.CertificateAuthoritySubjectType{
 				CommonName: "test_ca_1",
 			},
-			KeySize:           2048,
+			KeyConfig: types.KeyConfigType{
+				Type: "rsa",
+				Config: types.KeyTypeRsaConfigType{
+					Size: 2048,
+				},
+			},
 			CrlTtl:            12 * time.Hour,
 			PermittedIPRanges: []string{"0.0.0.0/0"},
 			ExcludedIPRanges:  []string{"INVALIDME"},
@@ -160,7 +175,13 @@ func TestInvalidCsrKey(t *testing.T) {
 		Subject: types.CertificateAuthoritySubjectType{
 			CommonName: "test_ca_1",
 		},
-		KeySize:           2048,
+
+		KeyConfig: types.KeyConfigType{
+			Type: "rsa",
+			Config: types.KeyTypeRsaConfigType{
+				Size: 2048,
+			},
+		},
 		CrlTtl:            12 * time.Hour,
 		PermittedIPRanges: []string{"0.0.0.0/0"},
 		ExcludedIPRanges:  []string{"0.0.0.0/0"},
@@ -231,7 +252,12 @@ func TestChangedKeySize(t *testing.T) {
 		Subject: types.CertificateAuthoritySubjectType{
 			CommonName: "test_ca_1",
 		},
-		KeySize:           2048,
+		KeyConfig: types.KeyConfigType{
+			Type: "rsa",
+			Config: types.KeyTypeRsaConfigType{
+				Size: 2048,
+			},
+		},
 		CrlTtl:            12 * time.Hour,
 		PermittedIPRanges: []string{"0.0.0.0/0"},
 		ExcludedIPRanges:  []string{"0.0.0.0/0"},
@@ -245,7 +271,12 @@ func TestChangedKeySize(t *testing.T) {
 		t.Error(err)
 	}
 
-	configData.KeySize = 1024
+	configData.KeyConfig = types.KeyConfigType{
+		Type: "rsa",
+		Config: types.KeyTypeRsaConfigType{
+			Size: 1024,
+		},
+	}
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
 		caId,

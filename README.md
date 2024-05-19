@@ -35,7 +35,10 @@ all_ca_configs:
             years: 1
             months: 1
             days: 10
-        key_size: 4096
+        key_config:
+            type: rsa
+            config:
+                size: 4096
         crl_ttl: 12h
         permitted_dns_domains_critical: true
         permitted_dns_domains: []

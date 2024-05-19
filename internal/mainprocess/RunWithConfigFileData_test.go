@@ -22,8 +22,13 @@ func TestStandardRun(t *testing.T) {
 				Subject: types.CertificateAuthoritySubjectType{
 					CommonName: "test_ca_1",
 				},
-				KeySize: 2048,
-				CrlTtl:  12 * time.Hour,
+				KeyConfig: types.KeyConfigType{
+					Type: "rsa",
+					Config: types.KeyTypeRsaConfigType{
+						Size: 2048,
+					},
+				},
+				CrlTtl: 12 * time.Hour,
 			},
 		},
 	}
@@ -49,8 +54,13 @@ func TestInvalidDatadir(t *testing.T) {
 				Subject: types.CertificateAuthoritySubjectType{
 					CommonName: "test_ca_1",
 				},
-				KeySize: 2048,
-				CrlTtl:  12 * time.Hour,
+				KeyConfig: types.KeyConfigType{
+					Type: "rsa",
+					Config: types.KeyTypeRsaConfigType{
+						Size: 2048,
+					},
+				},
+				CrlTtl: 12 * time.Hour,
 			},
 		},
 	}
@@ -74,8 +84,13 @@ func TestInvalidCaId(t *testing.T) {
 				Subject: types.CertificateAuthoritySubjectType{
 					CommonName: "test_ca_1",
 				},
-				KeySize: 2048,
-				CrlTtl:  12 * time.Hour,
+				KeyConfig: types.KeyConfigType{
+					Type: "rsa",
+					Config: types.KeyTypeRsaConfigType{
+						Size: 2048,
+					},
+				},
+				CrlTtl: 12 * time.Hour,
 			},
 		},
 	}

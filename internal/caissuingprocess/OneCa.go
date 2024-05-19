@@ -2,7 +2,7 @@ package caissuingprocess
 
 import (
 	"context"
-	"crypto/rsa"
+	"crypto"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -20,7 +20,7 @@ var ErrInvalidCaId = fmt.Errorf("invalid ca id")
 
 type OneCaType struct {
 	caConfig              types.CertificateAuthorityType
-	caPrivateKey          *rsa.PrivateKey
+	caPrivateKey          crypto.Signer
 	caCertificate         *x509.Certificate
 	caDir                 string
 	dataDir               string
@@ -78,15 +78,18 @@ func LoadOneCa(
 		return nil, fmt.Errorf("%s: %w", oneCa.issuedCertificatesDir, err)
 	}
 
-	{
+	switch keyConfigData := oneCa.caConfig.KeyConfig.Config.(type) {
+	case types.KeyTypeRsaConfigType:
 		caPrivateKey, err := getRsaPrivateKeyOrCreateNew(
 			oneCa.caFilenamePrivateKey,
-			oneCa.caConfig.KeySize,
+			keyConfigData.Size,
 		)
 		if err != nil {
 			return nil, err
 		}
 		oneCa.caPrivateKey = caPrivateKey
+	default:
+		return nil, fmt.Errorf("%w: %T", types.ErrInvalidKeyType, keyConfigData)
 	}
 
 	if err := oneCa.gitSnapshot(
@@ -96,11 +99,10 @@ func LoadOneCa(
 			if err != nil {
 				return err
 			}
-			caCertificate, err := getCertificateOrCreateNew(
+			caCertificate, err := getCertificateOrCreateNewSelfSigned(
 				oneCa.issuedCertificatesDir,
 				caCertificateTpl,
 				caCertificateTpl,
-				&oneCa.caPrivateKey.PublicKey,
 				oneCa.caPrivateKey,
 			)
 			if err != nil {
