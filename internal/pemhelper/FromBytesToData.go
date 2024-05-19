@@ -1,15 +1,12 @@
 package pemhelper
 
 import (
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 )
-
-var ErrPemEmpty = fmt.Errorf("no pem block")
-var ErrPemInvalidReminder = fmt.Errorf("invalid rest length")
-var ErrPemInvalidTypeFound = fmt.Errorf("invalid pem type found")
 
 func extractBytesFromPem(rawPemData []byte, pemType string) ([]byte, error) {
 	pemBlock, rest := pem.Decode(rawPemData)
@@ -26,6 +23,19 @@ func extractBytesFromPem(rawPemData []byte, pemType string) ([]byte, error) {
 	}
 
 	return pemBlock.Bytes, nil
+}
+
+func FromPemToEcdsaPrivateKey(rawPemData []byte) (*ecdsa.PrivateKey, error) {
+	pemBlockBytes, err := extractBytesFromPem(rawPemData, "EC PRIVATE KEY")
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := x509.ParseECPrivateKey(pemBlockBytes)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
 }
 
 func FromPemToRsaPrivateKey(rawPemData []byte) (*rsa.PrivateKey, error) {

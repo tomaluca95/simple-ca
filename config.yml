@@ -3,9 +3,9 @@ http_server:
     listen_address: 127.0.0.1
     listen_port: 5000
 all_ca_configs:
-    ca_1:
+    ca_rsa:
         subject:
-            common_name: "My CA 1"
+            common_name: "My CA RSA"
             country:
                 - "IT"
             organization:
@@ -18,6 +18,29 @@ all_ca_configs:
             type: rsa
             config:
                 size: 4096
+        crl_ttl: 12h
+        permitted_dns_domains_critical: true
+        permitted_ip_ranges:
+            - 192.168.0.0/16
+            - 10.0.0.0/8
+        http_server_options:
+            users:
+                my_user: my_pass
+    ca_ecdsa:
+        subject:
+            common_name: "My CA ECDSA"
+            country:
+                - "IT"
+            organization:
+                - "ACME Corp"
+            organizational_unit:
+                - "PKI"
+        validity:
+            months: 1
+        key_config:
+            type: ecdsa
+            config:
+                curve_name: P-256
         crl_ttl: 12h
         permitted_dns_domains_critical: true
         permitted_ip_ranges:

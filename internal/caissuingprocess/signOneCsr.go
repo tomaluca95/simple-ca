@@ -13,9 +13,8 @@ import (
 	"time"
 
 	"github.com/tomaluca95/simple-ca/internal/pemhelper"
+	"github.com/tomaluca95/simple-ca/internal/types"
 )
-
-var ErrInvalidKeyTypeInCsr = fmt.Errorf("invalid key type for csr")
 
 func signOneCsr(
 	caCertificate *x509.Certificate,
@@ -47,7 +46,7 @@ func signOneCsr(
 
 	publicKey, keyOk := csr.PublicKey.(*rsa.PublicKey)
 	if !keyOk {
-		return nil, fmt.Errorf("%w: %T", ErrInvalidKeyTypeInCsr, csr.PublicKey)
+		return nil, fmt.Errorf("%w: %T", types.ErrInvalidKeyTypeInCsr, csr.PublicKey)
 	}
 	crtTemplate := &x509.Certificate{
 		Subject:      csr.Subject,

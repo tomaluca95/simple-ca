@@ -31,8 +31,6 @@ type KeyConfigType struct {
 	Config any    `yaml:"config"`
 }
 
-var ErrInvalidKeyType = fmt.Errorf("invalid key type")
-
 func (e *KeyConfigType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var internalNode struct {
 		Type   string    `yaml:"type"`
@@ -58,6 +56,14 @@ func (e *KeyConfigType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		e.Config = keyConfig
 
 		return nil
+	case "ecdsa":
+		var keyConfig KeyTypeEcdsaConfigType
+		if err := yaml.Unmarshal(configYamlBytes, &keyConfig); err != nil {
+			return err
+		}
+		e.Config = keyConfig
+
+		return nil
 
 	default:
 		return fmt.Errorf("%w: %s", ErrInvalidKeyType, e.Type)
@@ -67,4 +73,8 @@ func (e *KeyConfigType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 type KeyTypeRsaConfigType struct {
 	Size int `yaml:"size"`
+}
+
+type KeyTypeEcdsaConfigType struct {
+	CurveName string `yaml:"curve_name"`
 }

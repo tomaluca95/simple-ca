@@ -16,7 +16,7 @@ import (
 	"github.com/tomaluca95/simple-ca/internal/webserver"
 )
 
-func TestSignCsr(t *testing.T) {
+func TestRsaSignCsr(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -104,7 +104,7 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 	}
 }
 
-func TestSignCsrAndRevoke(t *testing.T) {
+func TestRsaSignCsrAndRevoke(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -252,7 +252,7 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 	}
 }
 
-func TestGetIssuer(t *testing.T) {
+func TestRsaGetIssuer(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 

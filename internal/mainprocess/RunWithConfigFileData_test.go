@@ -11,7 +11,7 @@ import (
 	"github.com/tomaluca95/simple-ca/internal/types"
 )
 
-func TestStandardRun(t *testing.T) {
+func TestRsaStandardRun(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "ca_id_1"
 
@@ -39,7 +39,7 @@ func TestStandardRun(t *testing.T) {
 	}
 }
 
-func TestInvalidDatadir(t *testing.T) {
+func TestRsaInvalidDatadir(t *testing.T) {
 	dataDirectory := filepath.Join(t.TempDir(), "testinvaliddir")
 	if err := os.WriteFile(dataDirectory, []byte{}, os.FileMode(0o644)); err != nil {
 		t.Error(err)
@@ -73,7 +73,7 @@ func TestInvalidDatadir(t *testing.T) {
 	}
 }
 
-func TestInvalidCaId(t *testing.T) {
+func TestRsaInvalidCaId(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "ca.invalid"
 

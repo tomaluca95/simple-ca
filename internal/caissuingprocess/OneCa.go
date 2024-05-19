@@ -16,8 +16,6 @@ import (
 	"github.com/tomaluca95/simple-ca/internal/types"
 )
 
-var ErrInvalidCaId = fmt.Errorf("invalid ca id")
-
 type OneCaType struct {
 	caConfig              types.CertificateAuthorityType
 	caPrivateKey          crypto.Signer
@@ -40,7 +38,7 @@ func LoadOneCa(
 	var oneCa OneCaType
 	e := regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	if !e.MatchString(caId) {
-		return nil, fmt.Errorf("%w %#v", ErrInvalidCaId, caId)
+		return nil, fmt.Errorf("%w %#v", types.ErrInvalidCaId, caId)
 	}
 
 	oneCa.caConfig = caConfig
@@ -83,6 +81,15 @@ func LoadOneCa(
 		caPrivateKey, err := getRsaPrivateKeyOrCreateNew(
 			oneCa.caFilenamePrivateKey,
 			keyConfigData.Size,
+		)
+		if err != nil {
+			return nil, err
+		}
+		oneCa.caPrivateKey = caPrivateKey
+	case types.KeyTypeEcdsaConfigType:
+		caPrivateKey, err := getEcdsaPrivateKeyOrCreateNew(
+			oneCa.caFilenamePrivateKey,
+			keyConfigData.CurveName,
 		)
 		if err != nil {
 			return nil, err

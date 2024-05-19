@@ -20,7 +20,7 @@ import (
 	"github.com/tomaluca95/simple-ca/internal/types"
 )
 
-func TestOneCaBootstrap(t *testing.T) {
+func TestEcdsaOneCaBootstrap(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -29,9 +29,9 @@ func TestOneCaBootstrap(t *testing.T) {
 			CommonName: "test_ca_1",
 		},
 		KeyConfig: types.KeyConfigType{
-			Type: "rsa",
-			Config: types.KeyTypeRsaConfigType{
-				Size: 2048,
+			Type: "ecdsa",
+			Config: types.KeyTypeEcdsaConfigType{
+				CurveName: "P-256",
 			},
 		},
 		CrlTtl:            12 * time.Hour,
@@ -88,28 +88,28 @@ func TestOneCaBootstrap(t *testing.T) {
 	}
 }
 
-func TestInvalidCaIdOnlyDot(t *testing.T) {
+func TestEcdsaInvalidCaIdOnlyDot(t *testing.T) {
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
 		".",
 		t.TempDir(),
 		types.CertificateAuthorityType{},
 	); err != nil {
-		if !errors.Is(err, caissuingprocess.ErrInvalidCaId) {
+		if !errors.Is(err, types.ErrInvalidCaId) {
 			t.Error(err)
 		}
 	} else {
 		t.Error("expected error")
 	}
 }
-func TestInvalidCaIdWithSlash(t *testing.T) {
+func TestEcdsaInvalidCaIdWithSlash(t *testing.T) {
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
 		"/ok",
 		t.TempDir(),
 		types.CertificateAuthorityType{},
 	); err != nil {
-		if !errors.Is(err, caissuingprocess.ErrInvalidCaId) {
+		if !errors.Is(err, types.ErrInvalidCaId) {
 			t.Error(err)
 		}
 	} else {
@@ -117,7 +117,7 @@ func TestInvalidCaIdWithSlash(t *testing.T) {
 	}
 }
 
-func TestInvalidPermittedIPRanges(t *testing.T) {
+func TestEcdsaInvalidPermittedIPRanges(t *testing.T) {
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
 		"test_ca_1",
@@ -127,9 +127,9 @@ func TestInvalidPermittedIPRanges(t *testing.T) {
 				CommonName: "test_ca_1",
 			},
 			KeyConfig: types.KeyConfigType{
-				Type: "rsa",
-				Config: types.KeyTypeRsaConfigType{
-					Size: 2048,
+				Type: "ecdsa",
+				Config: types.KeyTypeEcdsaConfigType{
+					CurveName: "P-256",
 				},
 			},
 			CrlTtl:            12 * time.Hour,
@@ -142,7 +142,7 @@ func TestInvalidPermittedIPRanges(t *testing.T) {
 	}
 }
 
-func TestInvalidExcludedIPRanges(t *testing.T) {
+func TestEcdsaInvalidExcludedIPRanges(t *testing.T) {
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
 		"test_ca_1",
@@ -152,9 +152,9 @@ func TestInvalidExcludedIPRanges(t *testing.T) {
 				CommonName: "test_ca_1",
 			},
 			KeyConfig: types.KeyConfigType{
-				Type: "rsa",
-				Config: types.KeyTypeRsaConfigType{
-					Size: 2048,
+				Type: "ecdsa",
+				Config: types.KeyTypeEcdsaConfigType{
+					CurveName: "P-256",
 				},
 			},
 			CrlTtl:            12 * time.Hour,
@@ -167,7 +167,7 @@ func TestInvalidExcludedIPRanges(t *testing.T) {
 	}
 }
 
-func TestInvalidCsrKey(t *testing.T) {
+func TestEcdsaInvalidCsrKey(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -177,9 +177,9 @@ func TestInvalidCsrKey(t *testing.T) {
 		},
 
 		KeyConfig: types.KeyConfigType{
-			Type: "rsa",
-			Config: types.KeyTypeRsaConfigType{
-				Size: 2048,
+			Type: "ecdsa",
+			Config: types.KeyTypeEcdsaConfigType{
+				CurveName: "P-256",
 			},
 		},
 		CrlTtl:            12 * time.Hour,
@@ -236,7 +236,7 @@ func TestInvalidCsrKey(t *testing.T) {
 	}
 
 	if err := ca.IssueAllCsrInQueue(); err != nil {
-		if !errors.Is(err, caissuingprocess.ErrInvalidKeyTypeInCsr) {
+		if !errors.Is(err, types.ErrInvalidKeyTypeInCsr) {
 			t.Error(err)
 		}
 	} else {
@@ -244,7 +244,7 @@ func TestInvalidCsrKey(t *testing.T) {
 	}
 }
 
-func TestChangedKeySize(t *testing.T) {
+func TestEcdsaChangedKeySize(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -253,9 +253,9 @@ func TestChangedKeySize(t *testing.T) {
 			CommonName: "test_ca_1",
 		},
 		KeyConfig: types.KeyConfigType{
-			Type: "rsa",
-			Config: types.KeyTypeRsaConfigType{
-				Size: 2048,
+			Type: "ecdsa",
+			Config: types.KeyTypeEcdsaConfigType{
+				CurveName: "P-256",
 			},
 		},
 		CrlTtl:            12 * time.Hour,
@@ -272,9 +272,9 @@ func TestChangedKeySize(t *testing.T) {
 	}
 
 	configData.KeyConfig = types.KeyConfigType{
-		Type: "rsa",
-		Config: types.KeyTypeRsaConfigType{
-			Size: 1024,
+		Type: "ecdsa",
+		Config: types.KeyTypeEcdsaConfigType{
+			CurveName: "P-224",
 		},
 	}
 	if _, err := caissuingprocess.LoadOneCa(
@@ -283,7 +283,7 @@ func TestChangedKeySize(t *testing.T) {
 		dataDirectory,
 		configData,
 	); err != nil {
-		if !errors.Is(err, caissuingprocess.ErrUnsupportedChangeToKeySize) {
+		if !errors.Is(err, types.ErrUnsupportedChangeToCurve) {
 			t.Error(err)
 		}
 	} else {
