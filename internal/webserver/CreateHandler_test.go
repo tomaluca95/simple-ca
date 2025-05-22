@@ -17,6 +17,8 @@ import (
 )
 
 func TestRsaSignCsr(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -25,6 +27,7 @@ func TestRsaSignCsr(t *testing.T) {
 
 	h, err := webserver.CreateHandler(
 		context.Background(),
+		logger,
 		types.ConfigFileType{
 			DataDirectory: dataDirectory,
 			AllCaConfigs: map[string]types.CertificateAuthorityType{
@@ -105,6 +108,8 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 }
 
 func TestRsaSignCsrAndRevoke(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -113,6 +118,7 @@ func TestRsaSignCsrAndRevoke(t *testing.T) {
 
 	h, err := webserver.CreateHandler(
 		context.Background(),
+		logger,
 		types.ConfigFileType{
 			DataDirectory: dataDirectory,
 			AllCaConfigs: map[string]types.CertificateAuthorityType{
@@ -253,6 +259,8 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 }
 
 func TestRsaGetIssuer(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -261,6 +269,7 @@ func TestRsaGetIssuer(t *testing.T) {
 
 	h, err := webserver.CreateHandler(
 		context.Background(),
+		logger,
 		types.ConfigFileType{
 			DataDirectory: dataDirectory,
 			AllCaConfigs: map[string]types.CertificateAuthorityType{

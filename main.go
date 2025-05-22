@@ -14,6 +14,7 @@ import (
 )
 
 func main() {
+	logger := &types.StdLogger{}
 	ctx := context.Background()
 	configFilename := "config.yml"
 	if configFilenameOverride, overrideDone := os.LookupEnv("SIMPLE_CLI_CA_CONFIG_FILENAME"); overrideDone {
@@ -31,7 +32,7 @@ func main() {
 	}
 
 	if len(os.Args) == 1 {
-		if err := mainprocess.RunWithConfigFileData(ctx, configFile); err != nil {
+		if err := mainprocess.RunWithConfigFileData(ctx, logger, configFile); err != nil {
 			panic(err)
 		}
 	} else if len(os.Args) == 2 && os.Args[1] == "http" {
@@ -50,7 +51,7 @@ func main() {
 		}
 		defer netListen.Close()
 
-		httpHandler, err := webserver.CreateHandler(ctx, configFile)
+		httpHandler, err := webserver.CreateHandler(ctx, logger, configFile)
 		if err != nil {
 			panic(err)
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"net/http"
 	"os"
@@ -18,6 +17,7 @@ import (
 
 func CreateHandler(
 	ctx context.Context,
+	logger types.Logger,
 	configFile types.ConfigFileType,
 ) (http.Handler, error) {
 	httpHandler := gin.New()
@@ -28,6 +28,7 @@ func CreateHandler(
 		if caConfig.HttpServerOptions != nil {
 			oneCa, err := caissuingprocess.LoadOneCa(
 				ctx,
+				logger,
 				caId,
 				configFile.DataDirectory,
 				caConfig,
@@ -41,6 +42,8 @@ func CreateHandler(
 			httpWrapper := &httpWrapperType{
 				caId:  caId,
 				oneCa: oneCa,
+
+				logger: logger,
 			}
 
 			caHttpGroup := httpHandler.Group(
@@ -61,8 +64,9 @@ func CreateHandler(
 }
 
 type httpWrapperType struct {
-	caId  string
-	oneCa *caissuingprocess.OneCaType
+	caId   string
+	oneCa  *caissuingprocess.OneCaType
+	logger types.Logger
 }
 
 func (httpWrapper *httpWrapperType) Issuer(c *gin.Context) {
@@ -110,7 +114,7 @@ func (httpWrapper *httpWrapperType) CsrSign(c *gin.Context) {
 
 func (httpWrapper *httpWrapperType) CrtRevokeCrtSerial(c *gin.Context) {
 	crtSerial := c.Param("crtSerial")
-	log.Println("Request revoking: " + crtSerial)
+	httpWrapper.logger.Debug("Request revoking: %s", crtSerial)
 
 	n := new(big.Int)
 	if _, isInt := n.SetString(crtSerial, 10); !isInt {

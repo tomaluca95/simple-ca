@@ -3,7 +3,7 @@ module github.com/tomaluca95/simple-ca
 go 1.24.3
 
 require (
-	github.com/gin-gonic/gin v1.10.0
+	github.com/gin-gonic/gin v1.10.1
 	github.com/go-git/go-git/v5 v5.16.0
 	gopkg.in/yaml.v3 v3.0.1
 )

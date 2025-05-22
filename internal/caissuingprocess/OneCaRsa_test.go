@@ -10,7 +10,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
-	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,6 +20,8 @@ import (
 )
 
 func TestRsaOneCaBootstrap(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -40,6 +41,7 @@ func TestRsaOneCaBootstrap(t *testing.T) {
 	}
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		caId,
 		dataDirectory,
 		configData,
@@ -71,7 +73,6 @@ func TestRsaOneCaBootstrap(t *testing.T) {
 
 		csrFilename := filepath.Join(dataDirectory, caId, "data", "csr", "example-csr-file.csr.pem")
 
-		log.Println(csrFilename)
 		if err := os.WriteFile(csrFilename, csrAsPem, os.FileMode(0o644)); err != nil {
 			t.Error(err)
 			return
@@ -80,6 +81,7 @@ func TestRsaOneCaBootstrap(t *testing.T) {
 
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		caId,
 		dataDirectory,
 		configData,
@@ -89,8 +91,11 @@ func TestRsaOneCaBootstrap(t *testing.T) {
 }
 
 func TestRsaInvalidCaIdOnlyDot(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		".",
 		t.TempDir(),
 		types.CertificateAuthorityType{},
@@ -103,8 +108,11 @@ func TestRsaInvalidCaIdOnlyDot(t *testing.T) {
 	}
 }
 func TestRsaInvalidCaIdWithSlash(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		"/ok",
 		t.TempDir(),
 		types.CertificateAuthorityType{},
@@ -118,8 +126,11 @@ func TestRsaInvalidCaIdWithSlash(t *testing.T) {
 }
 
 func TestRsaInvalidPermittedIPRanges(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		"test_ca_1",
 		t.TempDir(),
 		types.CertificateAuthorityType{
@@ -143,8 +154,11 @@ func TestRsaInvalidPermittedIPRanges(t *testing.T) {
 }
 
 func TestRsaInvalidExcludedIPRanges(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		"test_ca_1",
 		t.TempDir(),
 		types.CertificateAuthorityType{
@@ -168,6 +182,8 @@ func TestRsaInvalidExcludedIPRanges(t *testing.T) {
 }
 
 func TestRsaInvalidCsrKey(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -188,6 +204,7 @@ func TestRsaInvalidCsrKey(t *testing.T) {
 	}
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		caId,
 		dataDirectory,
 		configData,
@@ -219,7 +236,6 @@ func TestRsaInvalidCsrKey(t *testing.T) {
 
 		csrFilename := filepath.Join(dataDirectory, caId, "data", "csr", "example-csr-file.csr.pem")
 
-		log.Println(csrFilename)
 		if err := os.WriteFile(csrFilename, csrAsPem, os.FileMode(0o644)); err != nil {
 			t.Error(err)
 			return
@@ -227,6 +243,7 @@ func TestRsaInvalidCsrKey(t *testing.T) {
 	}
 	ca, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		caId,
 		dataDirectory,
 		configData,
@@ -245,6 +262,8 @@ func TestRsaInvalidCsrKey(t *testing.T) {
 }
 
 func TestRsaChangedKeySize(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
@@ -264,6 +283,7 @@ func TestRsaChangedKeySize(t *testing.T) {
 	}
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		caId,
 		dataDirectory,
 		configData,
@@ -279,6 +299,7 @@ func TestRsaChangedKeySize(t *testing.T) {
 	}
 	if _, err := caissuingprocess.LoadOneCa(
 		context.Background(),
+		logger,
 		caId,
 		dataDirectory,
 		configData,

@@ -12,6 +12,8 @@ import (
 )
 
 func TestRsaStandardRun(t *testing.T) {
+	logger := &types.StdLogger{}
+
 	dataDirectory := t.TempDir()
 	caId := "ca_id_1"
 
@@ -33,13 +35,14 @@ func TestRsaStandardRun(t *testing.T) {
 		},
 	}
 
-	if err := mainprocess.RunWithConfigFileData(context.Background(), configObject); err != nil {
+	if err := mainprocess.RunWithConfigFileData(context.Background(), logger, configObject); err != nil {
 		t.Error(err)
 		return
 	}
 }
 
 func TestRsaInvalidDatadir(t *testing.T) {
+	logger := &types.StdLogger{}
 	dataDirectory := filepath.Join(t.TempDir(), "testinvaliddir")
 	if err := os.WriteFile(dataDirectory, []byte{}, os.FileMode(0o644)); err != nil {
 		t.Error(err)
@@ -65,7 +68,7 @@ func TestRsaInvalidDatadir(t *testing.T) {
 		},
 	}
 
-	if err := mainprocess.RunWithConfigFileData(context.Background(), configObject); err == nil {
+	if err := mainprocess.RunWithConfigFileData(context.Background(), logger, configObject); err == nil {
 		t.Error("erro expected")
 		return
 	} else {
@@ -74,6 +77,7 @@ func TestRsaInvalidDatadir(t *testing.T) {
 }
 
 func TestRsaInvalidCaId(t *testing.T) {
+	logger := &types.StdLogger{}
 	dataDirectory := t.TempDir()
 	caId := "ca.invalid"
 
@@ -95,7 +99,7 @@ func TestRsaInvalidCaId(t *testing.T) {
 		},
 	}
 
-	if err := mainprocess.RunWithConfigFileData(context.Background(), configObject); err == nil {
+	if err := mainprocess.RunWithConfigFileData(context.Background(), logger, configObject); err == nil {
 		t.Error("erro expected")
 		return
 	} else {

@@ -12,6 +12,7 @@ import (
 
 func RunWithConfigFileData(
 	ctx context.Context,
+	logger types.Logger,
 	configFile types.ConfigFileType,
 ) error {
 	if err := os.MkdirAll(configFile.DataDirectory, os.FileMode(0o711)); err != nil {
@@ -21,6 +22,7 @@ func RunWithConfigFileData(
 	for caId, caConfig := range configFile.AllCaConfigs {
 		oneCa, err := caissuingprocess.LoadOneCa(
 			ctx,
+			logger,
 			caId,
 			configFile.DataDirectory,
 			caConfig,

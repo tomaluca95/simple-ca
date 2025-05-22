@@ -5,14 +5,15 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/tomaluca95/simple-ca/internal/pemhelper"
+	"github.com/tomaluca95/simple-ca/internal/types"
 )
 
 func getCertificateOrCreateNewSelfSigned(
+	logger types.Logger,
 	issuedCertificatesDir string,
 	templateCertificate *x509.Certificate,
 	caCertificate *x509.Certificate,
@@ -26,6 +27,7 @@ func getCertificateOrCreateNewSelfSigned(
 		}
 
 		if _, err := certificateCreateNew(
+			logger,
 			issuedCertificatesDir,
 			templateCertificate,
 			caCertificate,
@@ -34,9 +36,11 @@ func getCertificateOrCreateNewSelfSigned(
 		); err != nil {
 			return nil, err
 		}
+	} else {
+		logger.Debug("File %s exists", certificateFilename)
 	}
 
-	log.Println("Reading file " + certificateFilename)
+	logger.Debug("Reading file %s", certificateFilename)
 	certificateContent, err := os.ReadFile(certificateFilename)
 	if err != nil {
 		return nil, err
@@ -45,6 +49,7 @@ func getCertificateOrCreateNewSelfSigned(
 }
 
 func certificateCreateNew(
+	logger types.Logger,
 	issuedCertificatesDir string,
 	templateCertificate *x509.Certificate,
 	caCertificate *x509.Certificate,
@@ -57,7 +62,7 @@ func certificateCreateNew(
 		return nil, fmt.Errorf("file %s exists", certificateFilename)
 	}
 
-	log.Println("Generate new file for " + certificateFilename)
+	logger.Debug("Generate new file for %s", certificateFilename)
 	caDerBytes, err := x509.CreateCertificate(
 		rand.Reader,
 		templateCertificate,

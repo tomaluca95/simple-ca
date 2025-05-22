@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 	"math/rand"
@@ -17,6 +16,7 @@ import (
 )
 
 func signOneCsr(
+	logger types.Logger,
 	caCertificate *x509.Certificate,
 	caPrivateKey crypto.Signer,
 	csrFilename string,
@@ -31,7 +31,7 @@ func signOneCsr(
 		return nil, err
 	}
 
-	log.Println("Loading CSR: " + csr.Subject.String())
+	logger.Debug("Loading CSR: %s", csr.Subject.String())
 
 	serialNumber := new(big.Int).Add(
 		big.NewInt(rand.Int63()),
@@ -64,6 +64,7 @@ func signOneCsr(
 	}
 
 	pemBlock, err := certificateCreateNew(
+		logger,
 		issuedCertificatesDir,
 		crtTemplate,
 		caCertificate,

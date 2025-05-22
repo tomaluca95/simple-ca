@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/tomaluca95/simple-ca/internal/pemhelper"
@@ -13,6 +12,7 @@ import (
 )
 
 func getRsaPrivateKeyOrCreateNew(
+	logger types.Logger,
 	filename string,
 	keySize int,
 ) (crypto.Signer, error) {
@@ -20,7 +20,7 @@ func getRsaPrivateKeyOrCreateNew(
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
-		log.Println("Generate new key for " + filename)
+		logger.Debug("Generate new key for %s", filename)
 		newPrivateKey, err := rsa.GenerateKey(rand.Reader, keySize)
 		if err != nil {
 			return nil, err
@@ -34,7 +34,7 @@ func getRsaPrivateKeyOrCreateNew(
 		}
 	}
 
-	log.Println("Reading file " + filename)
+	logger.Debug("Reading file %s", filename)
 	privateKeyContent, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err

@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -27,15 +26,19 @@ type OneCaType struct {
 	issuedCertificatesDir string
 	caFilenameCrl         string
 	caFilenamePrivateKey  string
+
+	logger types.Logger
 }
 
 func LoadOneCa(
 	ctx context.Context,
+	logger types.Logger,
 	caId string,
 	dataDirectory string,
 	caConfig types.CertificateAuthorityType,
 ) (*OneCaType, error) {
 	var oneCa OneCaType
+	oneCa.logger = logger
 	e := regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	if !e.MatchString(caId) {
 		return nil, fmt.Errorf("%w %#v", types.ErrInvalidCaId, caId)
@@ -79,6 +82,7 @@ func LoadOneCa(
 	switch keyConfigData := oneCa.caConfig.KeyConfig.Config.(type) {
 	case types.KeyTypeRsaConfigType:
 		caPrivateKey, err := getRsaPrivateKeyOrCreateNew(
+			logger,
 			oneCa.caFilenamePrivateKey,
 			keyConfigData.Size,
 		)
@@ -88,6 +92,7 @@ func LoadOneCa(
 		oneCa.caPrivateKey = caPrivateKey
 	case types.KeyTypeEcdsaConfigType:
 		caPrivateKey, err := getEcdsaPrivateKeyOrCreateNew(
+			logger,
 			oneCa.caFilenamePrivateKey,
 			keyConfigData.CurveName,
 		)
@@ -107,6 +112,7 @@ func LoadOneCa(
 				return err
 			}
 			caCertificate, err := getCertificateOrCreateNewSelfSigned(
+				logger,
 				oneCa.issuedCertificatesDir,
 				caCertificateTpl,
 				caCertificateTpl,
@@ -122,7 +128,7 @@ func LoadOneCa(
 		return nil, err
 	}
 
-	log.Println("Loaded CA: " + oneCa.caCertificate.Issuer.String())
+	logger.Debug("Loaded CA: %s", oneCa.caCertificate.Issuer.String())
 
 	return &oneCa, nil
 }
@@ -200,6 +206,7 @@ func (oneCa *OneCaType) SignCsrFile(csrFilename string) ([]byte, error) {
 		func() error {
 
 			newPemBytes, err := signOneCsr(
+				oneCa.logger,
 				oneCa.caCertificate,
 				oneCa.caPrivateKey,
 				csrFilename,

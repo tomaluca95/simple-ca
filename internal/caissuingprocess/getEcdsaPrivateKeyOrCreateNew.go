@@ -6,7 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/tomaluca95/simple-ca/internal/pemhelper"
@@ -14,6 +13,7 @@ import (
 )
 
 func getEcdsaPrivateKeyOrCreateNew(
+	logger types.Logger,
 	filename string,
 	curveName string,
 ) (crypto.Signer, error) {
@@ -21,7 +21,7 @@ func getEcdsaPrivateKeyOrCreateNew(
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
-		log.Println("Generate new key for " + filename)
+		logger.Debug("Generate new key for %s", filename)
 		var c elliptic.Curve
 		switch curveName {
 		case "P-224":
@@ -49,7 +49,7 @@ func getEcdsaPrivateKeyOrCreateNew(
 		}
 	}
 
-	log.Println("Reading file " + filename)
+	logger.Debug("Reading file %s", filename)
 	privateKeyContent, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
