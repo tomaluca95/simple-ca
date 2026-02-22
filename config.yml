@@ -23,9 +23,9 @@ all_ca_configs:
         permitted_ip_ranges:
             - 192.168.0.0/16
             - 10.0.0.0/8
-        http_server_options:
-            users:
-                my_user: my_pass
+            
+        opa_url_sign: http://localhost:8181/v1/data/simple_ca/allow
+        opa_url_revoke: http://localhost:8181/v1/data/simple_ca/allow
     ca_ecdsa:
         subject:
             common_name: "My CA ECDSA"
@@ -46,6 +46,6 @@ all_ca_configs:
         permitted_ip_ranges:
             - 192.168.0.0/16
             - 10.0.0.0/8
-        http_server_options:
-            users:
-                my_user: my_pass
+            
+        opa_url_sign: http://localhost:8181/v1/data/simple_ca/allow
+        opa_url_revoke: http://localhost:8181/v1/data/simple_ca/allow

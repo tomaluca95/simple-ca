@@ -7,8 +7,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tomaluca95/simple-ca/internal/caissuingprocess"
@@ -25,7 +23,7 @@ func CreateHandler(
 	httpHandler.Use(gin.Recovery())
 
 	for caId, caConfig := range configFile.AllCaConfigs {
-		if caConfig.HttpServerOptions != nil {
+		if caConfig.OpaUrlSign != nil && caConfig.OpaUrlRevoke != nil {
 			oneCa, err := caissuingprocess.LoadOneCa(
 				ctx,
 				logger,
@@ -43,14 +41,14 @@ func CreateHandler(
 				caId:  caId,
 				oneCa: oneCa,
 
+				OpaUrlSign:   *caConfig.OpaUrlSign,
+				OpaUrlRevoke: *caConfig.OpaUrlRevoke,
+
 				logger: logger,
 			}
 
 			caHttpGroup := httpHandler.Group(
-				"/ca/"+caId,
-				gin.BasicAuth(
-					gin.Accounts(caConfig.HttpServerOptions.Users),
-				),
+				"/ca/" + caId,
 			)
 
 			caHttpGroup.GET("/issuer.pem", httpWrapper.Issuer)
@@ -64,8 +62,12 @@ func CreateHandler(
 }
 
 type httpWrapperType struct {
-	caId   string
-	oneCa  *caissuingprocess.OneCaType
+	caId  string
+	oneCa *caissuingprocess.OneCaType
+
+	OpaUrlSign   string
+	OpaUrlRevoke string
+
 	logger types.Logger
 }
 
@@ -95,13 +97,30 @@ func (httpWrapper *httpWrapperType) CsrSign(c *gin.Context) {
 		return
 	}
 
-	csrFilename := filepath.Join(os.TempDir(), fmt.Sprint(time.Now().Unix()))
-	defer os.Remove(csrFilename)
+	if err := httpWrapper.opaWrapper(httpWrapper.OpaUrlSign, map[string]string{
+		"remote_addr":   c.Request.RemoteAddr,
+		"authorization": c.GetHeader("Authorization"),
+		"csr_content":   string(csrContent),
+	}); err != nil {
+		httpWrapper.logger.Debug("OPA denied the sign request: %v", err)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
 
-	if err := os.WriteFile(csrFilename, csrContent, os.FileMode(0o644)); err != nil {
+	csrFile, err := os.CreateTemp("", "csr-*.pem")
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	csrFilename := csrFile.Name()
+	defer os.Remove(csrFilename)
+
+	if _, err := csrFile.Write(csrContent); err != nil {
+		csrFile.Close()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	csrFile.Close()
 
 	pemBytes, err := httpWrapper.oneCa.SignCsrFile(csrFilename)
 	if err != nil {
@@ -119,6 +138,16 @@ func (httpWrapper *httpWrapperType) CrtRevokeCrtSerial(c *gin.Context) {
 	n := new(big.Int)
 	if _, isInt := n.SetString(crtSerial, 10); !isInt {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Errorf("invalid serial %#v", crtSerial).Error()})
+		return
+	}
+
+	if err := httpWrapper.opaWrapper(httpWrapper.OpaUrlRevoke, map[string]string{
+		"remote_addr":   c.Request.RemoteAddr,
+		"authorization": c.GetHeader("Authorization"),
+		"serial":        crtSerial,
+	}); err != nil {
+		httpWrapper.logger.Debug("OPA denied the revoke request: %v", err)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 

@@ -22,8 +22,14 @@ func TestRsaSignCsr(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
-	httpCaUsername := "username"
-	httpCaPassword := "password"
+	opaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"result": true}`))
+	}))
+	defer opaServer.Close()
+
+	opaUrl := opaServer.URL
 
 	h, err := webserver.CreateHandler(
 		context.Background(),
@@ -44,11 +50,8 @@ func TestRsaSignCsr(t *testing.T) {
 					CrlTtl:            12 * time.Hour,
 					PermittedIPRanges: []string{"0.0.0.0/0"},
 					ExcludedIPRanges:  []string{"0.0.0.0/0"},
-					HttpServerOptions: &types.HttpServerOptionsType{
-						Users: map[string]string{
-							httpCaUsername: httpCaPassword,
-						},
-					},
+					OpaUrlSign:        &opaUrl,
+					OpaUrlRevoke:      &opaUrl,
 				},
 			},
 		},
@@ -84,7 +87,6 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.SetBasicAuth(httpCaUsername, httpCaPassword)
 		h.ServeHTTP(rr, req)
 	}
 
@@ -113,8 +115,14 @@ func TestRsaSignCsrAndRevoke(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
-	httpCaUsername := "username"
-	httpCaPassword := "password"
+	opaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"result": true}`))
+	}))
+	defer opaServer.Close()
+
+	opaUrl := opaServer.URL
 
 	h, err := webserver.CreateHandler(
 		context.Background(),
@@ -135,11 +143,8 @@ func TestRsaSignCsrAndRevoke(t *testing.T) {
 					CrlTtl:            12 * time.Hour,
 					PermittedIPRanges: []string{"0.0.0.0/0"},
 					ExcludedIPRanges:  []string{"0.0.0.0/0"},
-					HttpServerOptions: &types.HttpServerOptionsType{
-						Users: map[string]string{
-							httpCaUsername: httpCaPassword,
-						},
-					},
+					OpaUrlSign:        &opaUrl,
+					OpaUrlRevoke:      &opaUrl,
 				},
 			},
 		},
@@ -175,7 +180,6 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.SetBasicAuth(httpCaUsername, httpCaPassword)
 		h.ServeHTTP(rrSignRequest, req)
 	}
 
@@ -207,7 +211,6 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.SetBasicAuth(httpCaUsername, httpCaPassword)
 		h.ServeHTTP(rrRevoke, req)
 	}
 
@@ -225,7 +228,6 @@ N1FQ0v5KwW0Rhe30WZIMvflSuCzoj3nB3U/y4kD/j1HJ5TBRzV6wL3ZzdpXCuQ==
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.SetBasicAuth(httpCaUsername, httpCaPassword)
 		h.ServeHTTP(rrCurrentCrl, req)
 	}
 
@@ -264,8 +266,14 @@ func TestRsaGetIssuer(t *testing.T) {
 	dataDirectory := t.TempDir()
 	caId := "test_ca_1"
 
-	httpCaUsername := "username"
-	httpCaPassword := "password"
+	opaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"result": true}`))
+	}))
+	defer opaServer.Close()
+
+	opaUrl := opaServer.URL
 
 	h, err := webserver.CreateHandler(
 		context.Background(),
@@ -286,11 +294,8 @@ func TestRsaGetIssuer(t *testing.T) {
 					CrlTtl:            12 * time.Hour,
 					PermittedIPRanges: []string{"0.0.0.0/0"},
 					ExcludedIPRanges:  []string{"0.0.0.0/0"},
-					HttpServerOptions: &types.HttpServerOptionsType{
-						Users: map[string]string{
-							httpCaUsername: httpCaPassword,
-						},
-					},
+					OpaUrlSign:        &opaUrl,
+					OpaUrlRevoke:      &opaUrl,
 				},
 			},
 		},
@@ -309,7 +314,6 @@ func TestRsaGetIssuer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		req.SetBasicAuth(httpCaUsername, httpCaPassword)
 		h.ServeHTTP(rrCurrentCrt, req)
 	}
 

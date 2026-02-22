@@ -13,7 +13,8 @@ type CertificateAuthorityType struct {
 	KeyConfig KeyConfigType `yaml:"key_config"`
 	CrlTtl    time.Duration `yaml:"crl_ttl"`
 
-	HttpServerOptions *HttpServerOptionsType `yaml:"http_server_options"`
+	OpaUrlSign   *string `yaml:"opa_url_sign"`
+	OpaUrlRevoke *string `yaml:"opa_url_revoke"`
 
 	PermittedDNSDomainsCritical bool     `yaml:"permitted_dns_domains_critical"`
 	PermittedDNSDomains         []string `yaml:"permitted_dns_domains"`
