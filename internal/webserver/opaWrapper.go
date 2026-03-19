@@ -2,12 +2,21 @@ package webserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
+var opaHTTPClient = &http.Client{
+	Timeout: 5 * time.Second,
+}
+
+var ErrNotAuthorized = fmt.Errorf("not authorized")
+
 func (httpWrapper *httpWrapperType) opaWrapper(
+	ctx context.Context,
 	opaUrl string,
 	data map[string]string,
 ) error {
@@ -20,11 +29,21 @@ func (httpWrapper *httpWrapperType) opaWrapper(
 		return fmt.Errorf("failed to marshal OPA input: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Post(opaUrl, "application/json", bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, opaUrl, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create OPA request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := opaHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to request OPA: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("OPA returned unexpected status: %s", resp.Status)
+	}
 
 	var result struct {
 		Result bool `json:"result"`
@@ -34,7 +53,7 @@ func (httpWrapper *httpWrapperType) opaWrapper(
 	}
 
 	if !result.Result {
-		return fmt.Errorf("OPA denied the request")
+		return ErrNotAuthorized
 	}
 
 	return nil

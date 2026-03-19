@@ -6,8 +6,10 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"os"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -79,7 +81,7 @@ func updateCrl(
 
 			newCrlIndexContent := append(commentPrefixToIndex, newCrlIndexYamlContent...)
 
-			if err := os.WriteFile(crlIndexFilename, newCrlIndexContent, os.FileMode(0o644)); err != nil {
+			if err := atomicWriteFile(crlIndexFilename, newCrlIndexContent, os.FileMode(0o644)); err != nil {
 				return err
 			}
 		}
@@ -92,13 +94,18 @@ func updateCrl(
 		}
 	}
 
+	nextCrlNumber, err := getNextCrlNumber(caFilenameCrl)
+	if err != nil {
+		return err
+	}
+
 	crlTemplate := &x509.RevocationList{
 		NextUpdate:          time.Now().Add(crlTtl),
 		Issuer:              caCertificate.Issuer,
 		AuthorityKeyId:      caCertificate.AuthorityKeyId,
 		ThisUpdate:          time.Now(),
 		RevokedCertificates: crlList,
-		Number:              big.NewInt(time.Now().UnixMilli()),
+		Number:              nextCrlNumber,
 	}
 
 	crlBytes, err := x509.CreateRevocationList(
@@ -115,7 +122,78 @@ func updateCrl(
 		Bytes: crlBytes,
 	})
 
-	if err := os.WriteFile(caFilenameCrl, pemBlockBytes, os.FileMode(0o644)); err != nil {
+	if err := atomicWriteFile(caFilenameCrl, pemBlockBytes, os.FileMode(0o644)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getNextCrlNumber(caFilenameCrl string) (*big.Int, error) {
+	defaultCrlNumber := big.NewInt(time.Now().UnixMilli())
+
+	crlPemBytes, err := os.ReadFile(caFilenameCrl)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return defaultCrlNumber, nil
+		}
+		return nil, err
+	}
+
+	pemBlock, _ := pem.Decode(crlPemBytes)
+	if pemBlock == nil {
+		return nil, fmt.Errorf("invalid CRL PEM content in %s", caFilenameCrl)
+	}
+
+	parsedCrl, err := x509.ParseRevocationList(pemBlock.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CRL content in %s: %w", caFilenameCrl, err)
+	}
+
+	if parsedCrl.Number == nil {
+		return defaultCrlNumber, nil
+	}
+
+	nextCrlNumber := new(big.Int).Set(parsedCrl.Number)
+	nextCrlNumber.Add(nextCrlNumber, big.NewInt(1))
+	return nextCrlNumber, nil
+}
+
+func atomicWriteFile(filename string, content []byte, mode os.FileMode) error {
+	dir := filepath.Dir(filename)
+	tmpFile, err := os.CreateTemp(dir, filepath.Base(filename)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpFilename := tmpFile.Name()
+	defer os.Remove(tmpFilename)
+
+	if _, err := tmpFile.Write(content); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Chmod(mode); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Sync(); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpFilename, filename); err != nil {
+		return err
+	}
+
+	// Persist directory entry update (rename) for crash safety.
+	dirFd, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer dirFd.Close()
+
+	if err := dirFd.Sync(); err != nil {
 		return err
 	}
 	return nil

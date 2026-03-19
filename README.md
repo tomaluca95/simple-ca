@@ -165,3 +165,4 @@ curl \
     -sSLf \
     -X POST \
     http://localhost:5000/ca/$CA_ID/crt/revoke/12345
+```

@@ -181,7 +181,7 @@ func TestRsaInvalidExcludedIPRanges(t *testing.T) {
 	}
 }
 
-func TestRsaInvalidCsrKey(t *testing.T) {
+func TestRsaSupportsEcdsaCsr(t *testing.T) {
 	logger := &types.StdLogger{}
 
 	dataDirectory := t.TempDir()
@@ -253,11 +253,7 @@ func TestRsaInvalidCsrKey(t *testing.T) {
 	}
 
 	if err := ca.IssueAllCsrInQueue(); err != nil {
-		if !errors.Is(err, types.ErrInvalidKeyTypeInCsr) {
-			t.Error(err)
-		}
-	} else {
-		t.Error("expected an error")
+		t.Error(err)
 	}
 }
 

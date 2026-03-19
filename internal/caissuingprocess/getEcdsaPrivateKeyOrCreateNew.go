@@ -44,7 +44,7 @@ func getEcdsaPrivateKeyOrCreateNew(
 		if err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filename, pemBytes, os.FileMode(0o644)); err != nil {
+		if err := os.WriteFile(filename, pemBytes, os.FileMode(0o600)); err != nil {
 			return nil, err
 		}
 	}

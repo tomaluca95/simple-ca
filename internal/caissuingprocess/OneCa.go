@@ -10,10 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 
 	"github.com/tomaluca95/simple-ca/internal/pemhelper"
 	"github.com/tomaluca95/simple-ca/internal/types"
 )
+
+var ErrUnknownSerial = errors.New("unknown serial")
 
 type OneCaType struct {
 	caConfig              types.CertificateAuthorityType
@@ -26,6 +29,8 @@ type OneCaType struct {
 	issuedCertificatesDir string
 	caFilenameCrl         string
 	caFilenamePrivateKey  string
+
+	mu sync.Mutex
 
 	logger types.Logger
 }
@@ -137,6 +142,9 @@ func (oneCa *OneCaType) gitSnapshot(
 	msg string,
 	runner func() error,
 ) error {
+	oneCa.mu.Lock()
+	defer oneCa.mu.Unlock()
+
 	gitWorktree, err := gitOpenRepository(oneCa.dataDir)
 	if err != nil {
 		return err
@@ -228,6 +236,13 @@ func (oneCa *OneCaType) RevokeOneSerial(crtSerial *big.Int) error {
 	if err := oneCa.gitSnapshot(
 		"revoking "+crtSerial.String(),
 		func() error {
+			certificateFilename := filepath.Join(oneCa.issuedCertificatesDir, crtSerial.String()+".crt.pem")
+			if _, err := os.Stat(certificateFilename); err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("%w: %s", ErrUnknownSerial, crtSerial.String())
+				}
+				return err
+			}
 			if err := updateCrl(
 				oneCa.crlIndexFilename,
 				oneCa.caFilenameCrl,
