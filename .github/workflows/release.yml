@@ -1,0 +1,131 @@
+name: Release binaries
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "*.*.*" ]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+
+      - name: Tests
+        run: go test -v ./...
+
+  build:
+    name: Build ${{ matrix.os }}/${{ matrix.arch }}
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.27.1'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: |
+          name="simple-ca-${GOOS}-${GOARCH}"
+          if [ "${GOOS}" = "windows" ]; then
+            name="${name}.exe"
+          fi
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w" -o "dist/${name}" .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: simple-ca-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute release info
+        id: info
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            echo "mode=tag" >> "$GITHUB_OUTPUT"
+            echo "release_tag=${tag}" >> "$GITHUB_OUTPUT"
+            echo "release_name=${tag}" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=commit" >> "$GITHUB_OUTPUT"
+            echo "release_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "release_name=Latest build (${GITHUB_SHA:0:7})" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum simple-ca-* > simple-ca-checksums.txt
+
+      - name: Publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ steps.info.outputs.mode }}
+          RELEASE_TAG: ${{ steps.info.outputs.release_tag }}
+          RELEASE_NAME: ${{ steps.info.outputs.release_name }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${MODE}" == "commit" ]]; then
+            if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+              echo "skipping publish of 'latest' for ref ${GITHUB_REF}"
+              exit 0
+            fi
+            gh release delete "${RELEASE_TAG}" --yes --cleanup-tag 2>/dev/null || true
+            gh release create "${RELEASE_TAG}" artifacts/* \
+              --target "${TARGET_SHA}" \
+              --title "${RELEASE_NAME}" \
+              --notes "Binaries built from commit ${TARGET_SHA:0:7}."
+          else
+            gh release create "${RELEASE_TAG}" artifacts/* \
+              --title "${RELEASE_NAME}" \
+              --notes "Binaries built from tag ${RELEASE_TAG}."
+          fi

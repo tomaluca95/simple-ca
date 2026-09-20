@@ -10,6 +10,29 @@ Mainly intended for development/testing environments.
 go build
 ```
 
+## Download prebuilt binaries
+
+Binaries are built by CI and attached to GitHub releases.
+
+- **Latest commit** on `main` (rolling release, tag `latest`):
+
+```bash
+curl -sSLf -o simple-ca \
+    https://github.com/tomaluca95/simple-ca/releases/latest/download/simple-ca-linux-amd64
+chmod +x simple-ca
+```
+
+- **Specific version** from a tag (e.g. `1.3.5`):
+
+```bash
+curl -sSLf -o simple-ca \
+    https://github.com/tomaluca95/simple-ca/releases/download/1.3.5/simple-ca-linux-amd64
+chmod +x simple-ca
+```
+
+Platforms: `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64` (`.exe` suffix).
+Checksums are in `simple-ca-checksums.txt` on each release.
+
 ## Update `config.yml`
 
 ```yaml
