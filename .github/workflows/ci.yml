@@ -1,0 +1,207 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "*.*.*" ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A superseded branch push is cancelled, a release in progress is never
+  # interrupted halfway through publishing.
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: '1.27.1'
+  STATICCHECK_VERSION: 'v0.8.1'
+  GOVULNCHECK_VERSION: 'v1.8.0'
+  OPA_VERSION: 'v1.21.0'
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "${unformatted}" ]; then
+            echo "these files are not gofmt clean:"
+            echo "${unformatted}"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: staticcheck
+        run: |
+          go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
+          "$(go env GOPATH)/bin/staticcheck" ./...
+
+      # The scan re-fetches the vulnerability database on every run, so a new
+      # advisory in the go-git dependency chain turns this step red even when
+      # nothing else changed. Module-level findings do not fail the build:
+      # govulncheck exits 0 unless a vulnerability reaches the code.
+      - name: govulncheck
+        run: |
+          go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+      - name: Policy checks
+        run: |
+          curl -sSLf -o opa "https://openpolicyagent.org/downloads/${OPA_VERSION}/opa_linux_amd64_static"
+          chmod +x opa
+          ./opa check examples/opa-policies/
+          ./opa test examples/opa-policies/
+
+      # There is no separate build step here: go vet type checks every
+      # package, and the build job below compiles the release binary for every
+      # supported target.
+      - name: Tests
+        run: go test -race ./...
+
+  build:
+    name: Build ${{ matrix.os }}/${{ matrix.arch }}
+    needs: checks
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: |
+          name="simple-ca-${GOOS}-${GOARCH}"
+          if [ "${GOOS}" = "windows" ]; then
+            name="${name}.exe"
+          fi
+          mkdir -p dist
+          go build -trimpath -ldflags "-s -w" -o "dist/${name}" .
+
+      # Nothing to collect on a pull request, where the job only exists to
+      # prove that every target still compiles.
+      - name: Upload artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: simple-ca-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/*
+
+  publish:
+    name: Publish release
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute release info
+        id: info
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            {
+              echo "mode=tag"
+              echo "release_tag=${tag}"
+              echo "release_name=${tag}"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "mode=commit"
+              echo "release_tag=latest"
+              echo "release_name=Latest build (${GITHUB_SHA:0:7})"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Attach license and corresponding source
+        run: |
+          set -euo pipefail
+          cp LICENSE.txt artifacts/LICENSE.txt
+          cp THIRD_PARTY_NOTICES.txt artifacts/THIRD_PARTY_NOTICES.txt
+          # Corresponding Source for the binaries in this release (GPLv3 s.6).
+          git archive --format=tar.gz --prefix="simple-ca-${GITHUB_SHA}/" \
+            -o "artifacts/simple-ca-source.tar.gz" "${GITHUB_SHA}"
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum simple-ca-* LICENSE.txt THIRD_PARTY_NOTICES.txt > simple-ca-checksums.txt
+
+      - name: Publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ steps.info.outputs.mode }}
+          RELEASE_TAG: ${{ steps.info.outputs.release_tag }}
+          RELEASE_NAME: ${{ steps.info.outputs.release_name }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          notes_file="$(mktemp)"
+          {
+            if [[ "${MODE}" == "commit" ]]; then
+              echo "Binaries built from commit ${TARGET_SHA:0:7}."
+            else
+              echo "Binaries built from tag ${RELEASE_TAG}."
+            fi
+            echo
+            echo "License: GNU GPL version 3 (see LICENSE.txt)."
+            echo "Corresponding Source: simple-ca-source.tar.gz."
+            echo "Third-party notices: THIRD_PARTY_NOTICES.txt."
+          } > "${notes_file}"
+          if [[ "${MODE}" == "commit" ]]; then
+            if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+              echo "skipping publish of 'latest' for ref ${GITHUB_REF}"
+              exit 0
+            fi
+            gh release delete "${RELEASE_TAG}" --yes --cleanup-tag 2>/dev/null || true
+            gh release create "${RELEASE_TAG}" artifacts/* \
+              --target "${TARGET_SHA}" \
+              --title "${RELEASE_NAME}" \
+              --notes-file "${notes_file}"
+          else
+            gh release create "${RELEASE_TAG}" artifacts/* \
+              --title "${RELEASE_NAME}" \
+              --notes-file "${notes_file}"
+          fi

@@ -29,6 +29,7 @@ func getx509CaCertificateTpl(caConfig types.CertificateAuthorityType) (*x509.Cer
 		excludedIPRanges = append(excludedIPRanges, parsed)
 	}
 
+	now := time.Now()
 	tpl := &x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:         caConfig.Subject.CommonName,
@@ -41,12 +42,16 @@ func getx509CaCertificateTpl(caConfig types.CertificateAuthorityType) (*x509.Cer
 			PostalCode:         caConfig.Subject.PostalCode,
 		},
 		SerialNumber: big.NewInt(1),
-		NotBefore:    time.Now(),
-		NotAfter: time.Now().AddDate(
-			caConfig.Validity.Years,
-			caConfig.Validity.Months,
-			caConfig.Validity.Days,
-		),
+		// notBefore is backdated by the configured skew so a verifier whose
+		// clock lags accepts a freshly issued certificate. It is fixed when the
+		// certificate is signed, and the load check does not look at it: the
+		// expiry is declared, not derived, so nothing here depends on when the
+		// load happens.
+		NotBefore: now.Add(-caConfig.ClockSkew),
+		// Trimmed to whole seconds because that is what a certificate carries:
+		// a configuration naming a finer instant would create a certificate
+		// that the load check then refused as different from the config.
+		NotAfter: caConfig.Validity.NotAfter.UTC().Truncate(time.Second),
 
 		BasicConstraintsValid:       true,
 		PermittedDNSDomainsCritical: caConfig.PermittedDNSDomainsCritical,

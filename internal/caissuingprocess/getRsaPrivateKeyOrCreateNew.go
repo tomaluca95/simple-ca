@@ -1,6 +1,7 @@
 package caissuingprocess
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -20,7 +21,7 @@ func getRsaPrivateKeyOrCreateNew(
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
-		logger.Debug("Generate new key for %s", filename)
+		logger.DebugContext(context.Background(), "generating new RSA private key", "filename", filename)
 		newPrivateKey, err := rsa.GenerateKey(rand.Reader, keySize)
 		if err != nil {
 			return nil, err
@@ -29,12 +30,15 @@ func getRsaPrivateKeyOrCreateNew(
 		if err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filename, pemBytes, os.FileMode(0o600)); err != nil {
+		if err := atomicWriteFile(filename, pemBytes, os.FileMode(0o600)); err != nil {
 			return nil, err
 		}
 	}
 
-	logger.Debug("Reading file %s", filename)
+	logger.DebugContext(context.Background(), "reading RSA private key", "filename", filename)
+	if err := ensurePrivateKeyFilePermissions(filename); err != nil {
+		return nil, err
+	}
 	privateKeyContent, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err

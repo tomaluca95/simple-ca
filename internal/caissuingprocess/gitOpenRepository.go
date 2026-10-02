@@ -8,7 +8,7 @@ import (
 
 func gitOpenRepository(
 	dataDir string,
-) (*git.Worktree, error) {
+) (*git.Repository, *git.Worktree, error) {
 	var repoGit *git.Repository
 	{
 		r, err := git.PlainOpen(dataDir)
@@ -16,11 +16,11 @@ func gitOpenRepository(
 			if errors.Is(err, git.ErrRepositoryNotExists) {
 				newR, err := git.PlainInit(dataDir, false)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				repoGit = newR
 			} else {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			repoGit = r
@@ -28,7 +28,7 @@ func gitOpenRepository(
 	}
 	gitWorktree, err := repoGit.Worktree()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return gitWorktree, nil
+	return repoGit, gitWorktree, nil
 }

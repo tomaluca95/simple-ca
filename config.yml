@@ -13,19 +13,28 @@ all_ca_configs:
             organizational_unit:
                 - "PKI"
         validity:
-            months: 1
+            # an absolute ISO8601 timestamp
+            not_after: 2027-10-01T00:00:00Z
         key_config:
             type: rsa
             config:
                 size: 4096
         crl_ttl: 12h
         permitted_dns_domains_critical: true
+        permitted_dns_domains:
+            - example.com
         permitted_ip_ranges:
             - 192.168.0.0/16
             - 10.0.0.0/8
-            
-        opa_url_sign: http://localhost:8181/v1/data/simple_ca/allow
-        opa_url_revoke: http://localhost:8181/v1/data/simple_ca/allow
+
+        opa_url_sign: http://localhost:8181/v1/data/simple_ca_sign/allow
+        opa_timeout_sign: 500ms
+
+        opa_url_revoke: http://localhost:8181/v1/data/simple_ca_revoke/allow
+        opa_timeout_revoke: 500ms
+
+        opa_url_issue_ca: http://localhost:8181/v1/data/simple_ca_issue_ca/allow
+        opa_timeout_issue_ca: 500ms
     ca_ecdsa:
         subject:
             common_name: "My CA ECDSA"
@@ -36,16 +45,22 @@ all_ca_configs:
             organizational_unit:
                 - "PKI"
         validity:
-            months: 1
+            not_after: 2027-10-01T00:00:00Z
         key_config:
             type: ecdsa
             config:
                 curve_name: P-256
         crl_ttl: 12h
         permitted_dns_domains_critical: true
+        permitted_dns_domains:
+            - example.com
         permitted_ip_ranges:
             - 192.168.0.0/16
             - 10.0.0.0/8
-            
-        opa_url_sign: http://localhost:8181/v1/data/simple_ca/allow
-        opa_url_revoke: http://localhost:8181/v1/data/simple_ca/allow
+
+        opa_url_sign: http://localhost:8181/v1/data/simple_ca_sign/allow
+        opa_url_revoke: http://localhost:8181/v1/data/simple_ca_revoke/allow
+        opa_url_issue_ca: http://localhost:8181/v1/data/simple_ca_issue_ca/allow
+        opa_timeout_sign: 500ms
+        opa_timeout_revoke: 500ms
+        opa_timeout_issue_ca: 500ms

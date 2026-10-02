@@ -36,6 +36,7 @@ func TestEcdsaOneCaBootstrap(t *testing.T) {
 			},
 		},
 		CrlTtl:            12 * time.Hour,
+		Validity:          testCaValidity,
 		PermittedIPRanges: []string{"0.0.0.0/0"},
 		ExcludedIPRanges:  []string{"0.0.0.0/0"},
 	}
@@ -144,6 +145,7 @@ func TestEcdsaInvalidPermittedIPRanges(t *testing.T) {
 				},
 			},
 			CrlTtl:            12 * time.Hour,
+			Validity:          testCaValidity,
 			PermittedIPRanges: []string{"INVALIDME"},
 			ExcludedIPRanges:  []string{"0.0.0.0/0"},
 		},
@@ -172,6 +174,7 @@ func TestEcdsaInvalidExcludedIPRanges(t *testing.T) {
 				},
 			},
 			CrlTtl:            12 * time.Hour,
+			Validity:          testCaValidity,
 			PermittedIPRanges: []string{"0.0.0.0/0"},
 			ExcludedIPRanges:  []string{"INVALIDME"},
 		},
@@ -199,6 +202,7 @@ func TestEcdsaSupportsEcdsaCsr(t *testing.T) {
 			},
 		},
 		CrlTtl:            12 * time.Hour,
+		Validity:          testCaValidity,
 		PermittedIPRanges: []string{"0.0.0.0/0"},
 		ExcludedIPRanges:  []string{"0.0.0.0/0"},
 	}
@@ -252,7 +256,7 @@ func TestEcdsaSupportsEcdsaCsr(t *testing.T) {
 		t.Error(err)
 	}
 
-	if err := ca.IssueAllCsrInQueue(); err != nil {
+	if err := ca.IssueAllCsrInQueue(context.Background(), func(ctx context.Context, proposedCertificate *x509.Certificate) error { return nil }); err != nil {
 		t.Error(err)
 	}
 }
@@ -274,6 +278,7 @@ func TestEcdsaChangedKeySize(t *testing.T) {
 			},
 		},
 		CrlTtl:            12 * time.Hour,
+		Validity:          testCaValidity,
 		PermittedIPRanges: []string{"0.0.0.0/0"},
 		ExcludedIPRanges:  []string{"0.0.0.0/0"},
 	}
@@ -287,10 +292,13 @@ func TestEcdsaChangedKeySize(t *testing.T) {
 		t.Error(err)
 	}
 
+	// Another approved curve: changing the curve of a CA that already has a
+	// key is refused, which is a different refusal from a curve this CA does
+	// not accept at all.
 	configData.KeyConfig = types.KeyConfigType{
 		Type: "ecdsa",
 		Config: types.KeyTypeEcdsaConfigType{
-			CurveName: "P-224",
+			CurveName: "P-521",
 		},
 	}
 	if _, err := caissuingprocess.LoadOneCa(
@@ -305,5 +313,183 @@ func TestEcdsaChangedKeySize(t *testing.T) {
 		}
 	} else {
 		t.Error("expected an error")
+	}
+}
+
+func TestEcdsaCaKeyMismatchFails(t *testing.T) {
+	logger := &types.StdLogger{}
+
+	dataDirectory := t.TempDir()
+	caId := "test_ca_1"
+
+	configData := types.CertificateAuthorityType{
+		Subject: types.CertificateAuthoritySubjectType{
+			CommonName: "test_ca_1",
+		},
+		KeyConfig: types.KeyConfigType{
+			Type: "ecdsa",
+			Config: types.KeyTypeEcdsaConfigType{
+				CurveName: "P-256",
+			},
+		},
+		CrlTtl:            12 * time.Hour,
+		Validity:          testCaValidity,
+		PermittedIPRanges: []string{"0.0.0.0/0"},
+		ExcludedIPRanges:  []string{"0.0.0.0/0"},
+	}
+	if _, err := caissuingprocess.LoadOneCa(
+		context.Background(),
+		logger,
+		caId,
+		dataDirectory,
+		configData,
+	); err != nil {
+		t.Error(err)
+		return
+	}
+
+	otherKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	otherKeyDer, err := x509.MarshalECPrivateKey(otherKey)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	caKeyFilename := filepath.Join(dataDirectory, caId, "ca.key.pem")
+	if err := os.WriteFile(caKeyFilename, pem.EncodeToMemory(&pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: otherKeyDer,
+	}), os.FileMode(0o600)); err != nil {
+		t.Error(err)
+		return
+	}
+
+	if _, err := caissuingprocess.LoadOneCa(
+		context.Background(),
+		logger,
+		caId,
+		dataDirectory,
+		configData,
+	); !errors.Is(err, caissuingprocess.ErrCaKeyMismatch) {
+		t.Errorf("expected ErrCaKeyMismatch, got %v", err)
+	}
+}
+
+// A CA left on a key an earlier release accepted is refused at load time. The
+// key and the certificate in the data directory here are a real, matching pair
+// and the certificate differs from the one the tool wrote in nothing but its
+// key, so nothing here but the curve is wrong: before the key was measured,
+// this CA loaded and signed.
+func TestEcdsaCaKeyOnAnUnapprovedCurveFails(t *testing.T) {
+	logger := &types.StdLogger{}
+
+	dataDirectory := t.TempDir()
+	caId := "test_ca_1"
+
+	configData := types.CertificateAuthorityType{
+		Subject: types.CertificateAuthoritySubjectType{
+			CommonName: "test_ca_1",
+		},
+		KeyConfig: types.KeyConfigType{
+			Type: "ecdsa",
+			Config: types.KeyTypeEcdsaConfigType{
+				CurveName: "P-256",
+			},
+		},
+		CrlTtl:            12 * time.Hour,
+		Validity:          testCaValidity,
+		PermittedIPRanges: []string{"0.0.0.0/0"},
+		ExcludedIPRanges:  []string{"0.0.0.0/0"},
+	}
+	if _, err := caissuingprocess.LoadOneCa(
+		context.Background(),
+		logger,
+		caId,
+		dataDirectory,
+		configData,
+	); err != nil {
+		t.Error(err)
+		return
+	}
+
+	weakKey, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	weakKeyDer, err := x509.MarshalECPrivateKey(weakKey)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if err := os.WriteFile(
+		filepath.Join(dataDirectory, caId, "ca.key.pem"),
+		pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: weakKeyDer}),
+		os.FileMode(0o600),
+	); err != nil {
+		t.Error(err)
+		return
+	}
+
+	// The certificate is re-signed with the weak key and the template of the
+	// one the tool wrote, so it keeps the subject, the validity and every
+	// extension the configuration asks for, and the key still matches it.
+	caCertificateFilename := filepath.Join(dataDirectory, caId, "data", "crt", "1.crt.pem")
+	caCertificateContent, err := os.ReadFile(caCertificateFilename)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	caCertificateBlock, _ := pem.Decode(caCertificateContent)
+	if caCertificateBlock == nil {
+		t.Error("no pem block in the CA certificate")
+		return
+	}
+	caCertificate, err := x509.ParseCertificate(caCertificateBlock.Bytes)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	caCertificateDer, err := x509.CreateCertificate(
+		rand.Reader,
+		caCertificate,
+		// The parent carries the issuer name and nothing else: the signing
+		// key is the weak one, not the key the old certificate names.
+		&x509.Certificate{Subject: caCertificate.Issuer},
+		&weakKey.PublicKey,
+		weakKey,
+	)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if err := os.WriteFile(
+		caCertificateFilename,
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCertificateDer}),
+		os.FileMode(0o644),
+	); err != nil {
+		t.Error(err)
+		return
+	}
+
+	// The configuration an operator upgrading this CA still has, naming the
+	// curve its key is really on.
+	configData.KeyConfig = types.KeyConfigType{
+		Type: "ecdsa",
+		Config: types.KeyTypeEcdsaConfigType{
+			CurveName: "P-224",
+		},
+	}
+	if _, err := caissuingprocess.LoadOneCa(
+		context.Background(),
+		logger,
+		caId,
+		dataDirectory,
+		configData,
+	); !errors.Is(err, types.ErrWeakPublicKey) {
+		t.Errorf("expected ErrWeakPublicKey, got %v", err)
 	}
 }

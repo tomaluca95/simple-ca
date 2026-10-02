@@ -1,12 +1,14 @@
 package caissuingprocess
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/tomaluca95/simple-ca/internal/pemhelper"
 	"github.com/tomaluca95/simple-ca/internal/types"
@@ -21,11 +23,9 @@ func getEcdsaPrivateKeyOrCreateNew(
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
-		logger.Debug("Generate new key for %s", filename)
+		logger.DebugContext(context.Background(), "generating new ECDSA private key", "filename", filename)
 		var c elliptic.Curve
 		switch curveName {
-		case "P-224":
-			c = elliptic.P224()
 		case "P-256":
 			c = elliptic.P256()
 		case "P-384":
@@ -33,7 +33,9 @@ func getEcdsaPrivateKeyOrCreateNew(
 		case "P-521":
 			c = elliptic.P521()
 		default:
-			return nil, fmt.Errorf("%w: %s", types.ErrInvalidCurve, curveName)
+			// A curve this CA does not accept is not generated, so a key on one
+			// can only be a key an earlier release left behind.
+			return nil, fmt.Errorf("%w: %q is not one of %s", types.ErrInvalidCurve, curveName, strings.Join(types.ApprovedEllipticCurves(), ", "))
 		}
 
 		newPrivateKey, err := ecdsa.GenerateKey(c, rand.Reader)
@@ -44,12 +46,15 @@ func getEcdsaPrivateKeyOrCreateNew(
 		if err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filename, pemBytes, os.FileMode(0o600)); err != nil {
+		if err := atomicWriteFile(filename, pemBytes, os.FileMode(0o600)); err != nil {
 			return nil, err
 		}
 	}
 
-	logger.Debug("Reading file %s", filename)
+	logger.DebugContext(context.Background(), "reading ECDSA private key", "filename", filename)
+	if err := ensurePrivateKeyFilePermissions(filename); err != nil {
+		return nil, err
+	}
 	privateKeyContent, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
